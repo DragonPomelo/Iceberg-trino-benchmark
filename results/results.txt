@@ -1,0 +1,30 @@
+Average performance for customer_table_without_bloom_filter:
+Query 1: 0.23021419843037924 seconds
+Query 2: 0.12618478139241537 seconds
+Query 3: 417.2215904394786 seconds
+Query 4: 1.672657569249471 seconds
+Average performance for customer_table_with_bloom_filter:
+Query 1: 0.33750049273173016 seconds
+Query 2: 0.21645132700602213 seconds
+Query 3: 416.0494505564372 seconds
+Query 4: 0.8780988852183024 seconds
+Average performance for customer_table_with_sorting:
+Query 1: 0.2297956943511963 seconds
+Query 2: 0.1138608455657959 seconds
+Query 3: 421.80111861228943 seconds
+Query 4: 0.8804671764373779 seconds
+Average performance for customer_table_with_sorting_and_bloom_filter:
+Query 1: 0.23109674453735352 seconds
+Query 2: 0.12211942672729492 seconds
+Query 3: 415.9599804878235 seconds
+Query 4: 0.8286421298980713 seconds
+Average creation time for orders_table_without_bloom_filter: 8.788269996643066 seconds
+Average creation time for customer_table_without_bloom_filter: 3.2250592708587646 seconds
+Average creation time for customer_table_with_bloom_filter: 3.4128189086914062 seconds
+Average creation time for customer_table_with_sorting: 5.611645619074504 seconds
+Average creation time for customer_table_with_sorting_and_bloom_filter: 5.467432578404744 seconds
+Row count for orders_table_without_bloom_filter: 15000000
+Row count for customer_table_without_bloom_filter: 1500000
+Row count for customer_table_with_bloom_filter: 1500000
+Row count for customer_table_with_sorting: 1500000
+Row count for customer_table_with_sorting_and_bloom_filter: 1500000

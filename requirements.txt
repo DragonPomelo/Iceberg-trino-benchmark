@@ -1,0 +1,3 @@
+trino
+numpy
+matplotlib

@@ -45,68 +45,41 @@ def create_tables(conn):
     table_creation_times = {}
     table_row_counts = {}
     try:
-        # Create table without Bloom Filter
+        # Create orders table without Bloom Filter
         query = """
-        CREATE or replace TABLE table_without_bloom_filter 
+        CREATE or replace TABLE orders_table_without_bloom_filter 
         WITH (
             format = 'PARQUET'
         ) AS
-        SELECT * FROM tpch.sf30.customer
+        SELECT * FROM tpch.sf10.orders
         """
-        table_creation_times["table_without_bloom_filter"], _ = execute_query(
+        table_creation_times["orders_table_without_bloom_filter"], _ = execute_query(
             conn, query
         )
-        query = "SELECT COUNT(*) FROM table_without_bloom_filter"
+        query = "SELECT COUNT(*) FROM orders_table_without_bloom_filter"
         _, rows = execute_query(conn, query)
-        table_row_counts["table_without_bloom_filter"] = rows[0][0]
-
-        # Create table with Bloom Filter
-        query = """
-        CREATE or replace TABLE table_with_bloom_filter 
-        WITH (
-            format = 'PARQUET',
-            parquet_bloom_filter_columns = ARRAY['custkey']
-        )
-        AS
-        SELECT * FROM tpch.sf30.customer
-        """
-        table_creation_times["table_with_bloom_filter"], _ = execute_query(conn, query)
-        query = "SELECT COUNT(*) FROM table_with_bloom_filter"
-        _, rows = execute_query(conn, query)
-        table_row_counts["table_with_bloom_filter"] = rows[0][0]
-
-        # Create table with sorting
-        query = """
-        CREATE or replace TABLE table_with_sorting
-        WITH (
-            format = 'PARQUET',
-            sorted_by = ARRAY['custkey']
-        )
-        AS
-        SELECT * FROM tpch.sf30.customer
-        """
-        table_creation_times["table_with_sorting"], _ = execute_query(conn, query)
-        query = "SELECT COUNT(*) FROM table_with_sorting"
-        _, rows = execute_query(conn, query)
-        table_row_counts["table_with_sorting"] = rows[0][0]
-
-        # Create table with both sorting and Bloom Filter
-        query = """
-        CREATE or replace TABLE table_with_sorting_and_bloom_filter
-        WITH (
-            format = 'PARQUET',
-            sorted_by = ARRAY['custkey'],
-            parquet_bloom_filter_columns = ARRAY['custkey']
-        )
-        AS
-        SELECT * FROM tpch.sf30.customer
-        """
-        table_creation_times["table_with_sorting_and_bloom_filter"], _ = execute_query(
-            conn, query
-        )
-        query = "SELECT COUNT(*) FROM table_with_sorting_and_bloom_filter"
-        _, rows = execute_query(conn, query)
-        table_row_counts["table_with_sorting_and_bloom_filter"] = rows[0][0]
+        table_row_counts["orders_table_without_bloom_filter"] = rows[0][0]
+        
+        # Create customer tables with different settings (Bloom Filter, sorting, etc.)
+        query_templates = [
+            ("customer_table_without_bloom_filter", ""),
+            ("customer_table_with_bloom_filter", "parquet_bloom_filter_columns = ARRAY['custkey']"),
+            ("customer_table_with_sorting", "sorted_by = ARRAY['custkey']"),
+            ("customer_table_with_sorting_and_bloom_filter", "sorted_by = ARRAY['custkey'], parquet_bloom_filter_columns = ARRAY['custkey']")
+        ]
+        
+        for table_name, options in query_templates:
+            query = f"""
+            CREATE or replace TABLE {table_name} 
+            WITH (
+                format = 'PARQUET' {',' if options else ''} {options}
+            ) AS
+            SELECT * FROM tpch.sf10.customer
+            """
+            table_creation_times[table_name], _ = execute_query(conn, query)
+            query = f"SELECT COUNT(*) FROM {table_name}"
+            _, rows = execute_query(conn, query)
+            table_row_counts[table_name] = rows[0][0]
 
     except trino.exceptions.TrinoQueryError as e:
         logger.error(f"Failed to create tables: {e}")
@@ -117,15 +90,27 @@ def create_tables(conn):
 
 def benchmark_queries(conn):
     queries = [
+        # Simple WHERE queries
         "SELECT * FROM {} WHERE custkey = 500000",
         "SELECT COUNT(*) FROM {} WHERE custkey > 500000",
+        # Join queries
+        """
+        SELECT o.*, c.* 
+        FROM orders_table_without_bloom_filter o 
+        JOIN {} c ON o.custkey = c.custkey
+        """,
+        """
+        SELECT COUNT(*) 
+        FROM orders_table_without_bloom_filter o 
+        JOIN {} c ON o.custkey = c.custkey
+        """
     ]
 
     table_names = [
-        "table_without_bloom_filter",
-        "table_with_bloom_filter",
-        "table_with_sorting",
-        "table_with_sorting_and_bloom_filter",
+        "customer_table_without_bloom_filter",
+        "customer_table_with_bloom_filter",
+        "customer_table_with_sorting",
+        "customer_table_with_sorting_and_bloom_filter",
     ]
 
     results = {table: [] for table in table_names}
@@ -146,6 +131,8 @@ def plot_results(average_query_results, average_creation_times):
     queries = [
         "SELECT * FROM {} WHERE custkey = 500000",
         "SELECT COUNT(*) FROM {} WHERE custkey > 500000",
+        "SELECT o.*, c.* FROM orders_table_without_bloom_filter o JOIN {} c ON o.custkey = c.custkey",
+        "SELECT COUNT(*) FROM orders_table_without_bloom_filter o JOIN {} c ON o.custkey = c.custkey"
     ]
 
     table_names = list(average_query_results.keys())
@@ -160,7 +147,9 @@ def plot_results(average_query_results, average_creation_times):
         plt.title(f"Average Execution Time for {query}")
         plt.xticks(rotation=45)
         plt.tight_layout()
-        plt.show()
+        # Save plot instead of showing
+        plt.savefig(f"results/execution_time_query_{i+1}.png")
+        plt.close()
 
     creation_times_list = [average_creation_times[table] for table in table_names]
     plt.figure(figsize=(10, 6))
@@ -170,7 +159,9 @@ def plot_results(average_query_results, average_creation_times):
     plt.title("Average Table Creation Times")
     plt.xticks(rotation=45)
     plt.tight_layout()
-    plt.show()
+    # Save plot instead of showing
+    plt.savefig("results/table_creation_times.png")
+    plt.close()
 
 
 def main():
